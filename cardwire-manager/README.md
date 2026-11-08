@@ -2,6 +2,13 @@
 
 A bar widget and panel to view and switch Cardwire GPU modes: Integrated / Hybrid / Smart on laptops, Hybrid / Manual on desktops.
 
+## Features
+
+- Bar pill showing the active GPU mode with a CPU glyph, a warning glyph on error, and optional mode-name abbreviation.
+- Panel listing available modes with one-click switching and the active row highlighted.
+- Fixed-rate polling and startup retries while the bar widget is placed, plus refresh coalescing and post-switch verification after 400 ms. The service still performs one initial read without a widget.
+- IPC events for command-line and keybind control.
+
 ## Plugin
 
 | Field | Value |
@@ -11,12 +18,25 @@ A bar widget and panel to view and switch Cardwire GPU modes: Integrated / Hybri
 
 ## Requirements
 
-- [`cardwire`](https://github.com/OpenGamingCollective/cardwire) must be on `PATH`, and the `cardwired` daemon must be running. Enable it with `sudo systemctl enable --now cardwired`.
+- Noctalia v5 with plugin API 26 or newer (every tagged release from 5.0.1; tested on 5.3.0).
+- [`cardwire`](https://github.com/OpenGamingCollective/cardwire) installed and on `PATH`, with the `cardwired` daemon running. Enable it with `sudo systemctl enable --now cardwired`.
+- Check that Cardwire is working with `cardwire get`.
 - The plugin does not need root access or `pkexec`.
 
 ## Usage
 
-Add the **Cardwire Manager** widget in Settings → Bar (widget type `tuanbinhtran/cardwire-manager:bar`). Left-click the bar widget to open the panel; right-click to cycle to the next available mode. Select a mode row in the panel to switch modes, or use the **Refresh** button to read the current state again.
+Add the **Cardwire Manager** widget in Settings → Bar. Alternatively, add this to `config.toml` and include `"cardwire"` in a bar section list, for example:
+
+```toml
+[widget.cardwire]
+type = "tuanbinhtran/cardwire-manager:bar"
+abbreviate_mode_names = false
+
+[bar.default]
+end = [ …, "cardwire" ]
+```
+
+Left-click the bar widget to open the panel; right-click to cycle to the next available mode. Select a mode row in the panel to switch modes, or use the **Refresh** button to read the current state again.
 
 Open the panel directly with:
 
@@ -50,3 +70,14 @@ noctalia msg plugin tuanbinhtran/cardwire-manager:service all cycle
 - Startup retries run after 2, 5, and 10 seconds. A verification read runs 400 ms after a mode switch.
 - Errors appear in the bar (warning glyph), tooltip, and panel. Failed mode switches also raise an error notification.
 - The plugin writes no files and makes no network requests.
+
+## Troubleshooting
+
+- Check Noctalia's log at `~/.cache/noctalia/noctalia.log`, for example with `grep cardwire ~/.cache/noctalia/noctalia.log`.
+- Run `noctalia plugins lint cardwire-manager` to check the plugin manifest and entries.
+- Check the daemon with `cardwire manager status`, then inspect the command output with `cardwire get`.
+- An **incompatible plugin API** badge means the installed Noctalia predates plugin API 26; upgrade Noctalia.
+
+## Credits
+
+The original DMS plugin was created by [Jan Kelemen](https://github.com/jankelemen/cardwire-manager). [cardwire](https://github.com/OpenGamingCollective/cardwire) is developed by OpenGamingCollective under GPL-3.0; it is not bundled with this plugin and is invoked as an external command.

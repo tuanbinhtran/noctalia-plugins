@@ -1,96 +1,69 @@
-# Cardwire Manager for Noctalia
+# tuanbinhtran's Noctalia plugins
 
-A Noctalia v5 port of [jankelemen/cardwire-manager](https://github.com/jankelemen/cardwire-manager), originally made for DankMaterialShell (DMS). This plugin provides a bar pill and panel for viewing and switching Cardwire GPU modes.
+Personal catalog of plugins for Noctalia v5; each top-level directory containing a `plugin.toml` is one plugin.
 
-## Features
+## Plugins
 
-- Bar pill showing the active GPU mode with a CPU glyph, a warning glyph on error, and optional mode-name abbreviation.
-- Panel listing available modes with one-click switching and the active row highlighted.
-- Fixed-rate polling and startup retries while the bar widget is placed, plus refresh coalescing and post-switch verification after 400 ms. The service still performs one initial read without a widget.
-- IPC events for command-line and keybind control.
-- MIT licensed.
+| Plugin | Description | Plugin API |
+| --- | --- | --- |
+| [Cardwire Manager](cardwire-manager/README.md) | View and switch Cardwire GPU modes from the bar (port of the DMS plugin [jankelemen/cardwire-manager](https://github.com/jankelemen/cardwire-manager)). | 26 |
 
-## Requirements
+## Install
 
-- Noctalia v5 with plugin API 26 or newer (every tagged release from 5.0.1; tested on 5.3.0).
-- `cardwire` installed and on `PATH`, with the `cardwired` daemon running. Enable it with `sudo systemctl enable --now cardwired`.
-- Check that Cardwire is working with `cardwire get`.
-
-## Install from the plugin store
-
-Once listed in the store, install **Cardwire Manager** from Settings → Plugins → Plugin Store, or run:
+Once a plugin is listed in the Noctalia plugin store, install it from Settings → Plugins → Plugin Store, or run:
 
 ```sh
-noctalia msg plugins enable tuanbinhtran/cardwire-manager
+noctalia msg plugins enable tuanbinhtran/<plugin>
 ```
 
-## Run locally (not in the store)
+For example, enable Cardwire Manager with `noctalia msg plugins enable tuanbinhtran/cardwire-manager`.
 
-Choose one of these ways to make the plugin available locally.
+### Run locally (not in the store)
 
-### Option A — local checkout as a `path` source (recommended for development, hot reload)
+Choose one of these ways to make a plugin available locally.
+
+#### Option A — local checkout as a `path` source (recommended for development, hot reload)
 
 ```sh
-git clone https://github.com/tuanbinhtran/cardwire-manager-noctalia ~/Code/cardwire-manager-noctalia
-noctalia msg plugins source add cardwire-dev path ~/Code/cardwire-manager-noctalia
-noctalia msg plugins list | grep cardwire-manager
-noctalia msg plugins enable tuanbinhtran/cardwire-manager
+git clone https://github.com/tuanbinhtran/noctalia-plugins ~/Code/noctalia-plugins
+noctalia msg plugins source add tuanbinhtran-dev path ~/Code/noctalia-plugins
+noctalia msg plugins list
+noctalia msg plugins enable tuanbinhtran/<plugin>
 ```
 
-The source location must be the repository root (the **parent** of the `cardwire-manager/` plugin directory), not the plugin directory itself. The equivalent `config.toml` block is:
+For example, enable Cardwire Manager with `noctalia msg plugins enable tuanbinhtran/cardwire-manager`. The source location must be the repository root, not a plugin directory. The equivalent `config.toml` block is:
 
 ```toml
 [[plugins.source]]
-name     = "cardwire-dev"
+name     = "tuanbinhtran-dev"
 kind     = "path"
-location = "~/Code/cardwire-manager-noctalia"
+location = "~/Code/noctalia-plugins"
 enabled  = true
 ```
 
-### Option B — install straight from GitHub as a `git` source
+#### Option B — install straight from GitHub as a `git` source
 
 ```sh
-noctalia msg plugins source add cardwire git https://github.com/tuanbinhtran/cardwire-manager-noctalia
-noctalia msg plugins enable tuanbinhtran/cardwire-manager
+noctalia msg plugins source add tuanbinhtran git https://github.com/tuanbinhtran/noctalia-plugins
+noctalia msg plugins enable tuanbinhtran/<plugin>
+noctalia msg plugins update tuanbinhtran
 ```
 
-Update this source later with:
+For example, the plugin ID for Cardwire Manager is `tuanbinhtran/cardwire-manager`.
+
+#### Option C — drop-in copy
+
+Copy just the desired plugin directory into Noctalia's local plugins directory, keeping its directory name:
 
 ```sh
-noctalia msg plugins update cardwire
+mkdir -p ~/.local/share/noctalia/plugins
+cp -r <plugin> ~/.local/share/noctalia/plugins/
+noctalia msg plugins enable tuanbinhtran/<plugin>
 ```
 
-### Option C — drop-in copy
+For Cardwire Manager, use `cardwire-manager` as `<plugin>`. Refresh a drop-in copy manually whenever you update the checkout.
 
-From the repository root, copy the plugin into Noctalia's local plugins directory and enable it:
-
-```sh
-mkdir -p ~/.local/share/noctalia/plugins && cp -r cardwire-manager ~/.local/share/noctalia/plugins/
-noctalia msg plugins enable tuanbinhtran/cardwire-manager
-```
-
-Keep the destination directory name `cardwire-manager`; refresh the copy manually whenever you update the checkout.
-
-### Add the bar widget
-
-In Settings → Bar, add the **Cardwire Manager** widget. Alternatively, add this to `config.toml` and include `"cardwire"` in a bar section list, for example:
-
-```toml
-[widget.cardwire]
-type = "tuanbinhtran/cardwire-manager:bar"
-abbreviate_mode_names = false
-
-[bar.default]
-end = [ …, "cardwire" ]
-```
-
-### Open the panel
-
-```sh
-noctalia msg panel-toggle tuanbinhtran/cardwire-manager:panel
-```
-
-### Reloading
+#### Reloading
 
 `.luau` edits hot-reload. A reload that hits a syntax error (for example a half-saved file) stops Noctalia from watching the plugin's `lib/` modules, so later edits are not picked up; check the log and run `noctalia msg config-reload` after fixing it. After editing `plugin.toml`, reload the configuration:
 
@@ -98,69 +71,55 @@ noctalia msg panel-toggle tuanbinhtran/cardwire-manager:panel
 noctalia msg config-reload
 ```
 
-### Remove
+#### Remove
 
-Disable the plugin and, if applicable, remove the source or local copy:
+Disable the plugin and, if applicable, remove its source or local copy:
 
 ```sh
-noctalia msg plugins disable tuanbinhtran/cardwire-manager
-noctalia msg plugins source remove cardwire-dev  # or: cardwire
-rm -r ~/.local/share/noctalia/plugins/cardwire-manager  # drop-in copy only
+noctalia msg plugins disable tuanbinhtran/<plugin>
+noctalia msg plugins source remove tuanbinhtran-dev  # or: tuanbinhtran
+rm -r ~/.local/share/noctalia/plugins/<plugin>  # drop-in copy only
 ```
 
-## Troubleshooting
-
-- Check Noctalia's log at `~/.cache/noctalia/noctalia.log`, for example with `grep cardwire ~/.cache/noctalia/noctalia.log`.
-- Run `noctalia plugins lint cardwire-manager` to check the plugin manifest and entries.
-- Check the daemon with `cardwire manager status`, then inspect the command output with `cardwire get`.
-- An **incompatible plugin API** badge means the installed Noctalia predates plugin API 26; upgrade Noctalia.
+For existing users: this repository was renamed and GitHub redirects its former URL, but re-add the git source using the new URL. Plugin IDs and widget configuration are unchanged.
 
 ## Development
 
 Repository layout:
 
 ```text
-cardwire-manager-noctalia/
+noctalia-plugins/
 ├── catalog.toml
 ├── cardwire-manager/
-│   ├── lib/
-│   │   ├── cardwire.luau
-│   │   ├── controller.luau
-│   │   └── protocol.luau
-│   ├── translations/
-│   │   └── en.json
-│   ├── bar.luau
-│   ├── panel.luau
+│   ├── README.md
 │   ├── plugin.toml
-│   ├── service.luau
-│   ├── thumbnail.webp
-│   └── README.md
+│   ├── *.luau
+│   ├── lib/
+│   ├── translations/
+│   └── thumbnail.webp
+├── tests/
+│   ├── harness.luau
+│   └── cardwire-manager/
+│       ├── cardwire.test.luau
+│       └── controller.test.luau
 ├── scripts/
-│   └── test.sh
-└── tests/
-    ├── cardwire.test.luau
-    ├── controller.test.luau
-    └── harness.luau
+│   ├── test.sh
+│   └── sync-catalog.py
+├── LICENSE
+└── README.md
 ```
 
-Run the Luau unit tests with:
+Run all Luau unit tests, or only one plugin's tests:
 
 ```sh
 ./scripts/test.sh
+./scripts/test.sh <plugin>
 ```
 
-The suites cover the pure helpers (`lib/cardwire.luau`) and the service state machine (`lib/controller.luau`, driven by a fake host with a manual clock). The script uses `$LUAU` if set, else `luau` from `PATH`; otherwise it downloads the pinned Luau 0.745 CLI (`luau-ubuntu.zip`, an x86_64 glibc build) into the gitignored `.tools/` directory, which needs `curl` and `unzip`. On other platforms run `LUAU=/path/to/luau ./scripts/test.sh`. Also lint the plugin with:
+The script uses `$LUAU` if set, else `luau` from `PATH`; otherwise it downloads the pinned Luau 0.745 CLI (`luau-ubuntu.zip`, an x86_64 glibc build) into the gitignored `.tools/` directory, which needs `curl` and `unzip`. On other platforms run `LUAU=/path/to/luau ./scripts/test.sh`. Lint a plugin with:
 
 ```sh
-noctalia plugins lint cardwire-manager
-```
-
-Example IPC tests (see the plugin [IPC section](cardwire-manager/README.md#ipc)):
-
-```sh
-noctalia msg plugin tuanbinhtran/cardwire-manager:service all refresh
-noctalia msg plugin tuanbinhtran/cardwire-manager:service all set <integrated|hybrid|manual|smart>
-noctalia msg plugin tuanbinhtran/cardwire-manager:service all cycle
+noctalia plugins lint <plugin>
 ```
 
 For optional `luau-lsp` type checking, download Noctalia's API declarations:
@@ -169,8 +128,20 @@ For optional `luau-lsp` type checking, download Noctalia's API declarations:
 curl -O https://raw.githubusercontent.com/noctalia-dev/official-plugins/main/noctalia.d.luau
 ```
 
-Keep `catalog.toml` in sync with `cardwire-manager/plugin.toml` on every version bump. To submit the plugin to the store, copy `cardwire-manager/` into a community-plugins fork; do **not** commit this repository's `catalog.toml` into that fork.
+Run it from the repository root (the file is gitignored) and add `noctalia.d.luau` to luau-lsp's `types.definitionFiles`.
 
-## Credits & License
+### Adding a plugin
 
-Licensed under the MIT License; see [LICENSE](LICENSE). The original DMS plugin was created by [Jan Kelemen](https://github.com/jankelemen/cardwire-manager). [cardwire](https://github.com/OpenGamingCollective/cardwire) is developed by OpenGamingCollective under GPL-3.0; it is not bundled with this plugin and is invoked as an external command.
+1. Create `<plugin>/plugin.toml` with ID `tuanbinhtran/<plugin>` and the plugin's entries.
+2. Add `translations/en.json`, `README.md`, and `thumbnail.webp` in the plugin directory.
+3. Add tests under `tests/<plugin>/*.test.luau`; require the shared harness as `../harness` and plugin code as `../../<plugin>/...`.
+4. Run `python3 scripts/sync-catalog.py` and commit the regenerated `catalog.toml`.
+5. Add a row for the plugin to the root Plugins table.
+
+### Releasing
+
+Bump `version` in the plugin's `plugin.toml`, run `python3 scripts/sync-catalog.py`, and commit the change with a Conventional Commits message. Tag the release `<plugin>/vX.Y.Z`. For store submission, copy only the plugin directory into a community-plugins fork; never copy this repository's `catalog.toml`.
+
+## License
+
+MIT; see [LICENSE](LICENSE). Per-plugin credits are listed in each plugin's README.

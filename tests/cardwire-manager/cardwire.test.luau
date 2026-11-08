@@ -1,6 +1,6 @@
 --!nonstrict
-local cardwire = require("../cardwire-manager/lib/cardwire")
-local harness = require("./harness")
+local cardwire = require("../../cardwire-manager/lib/cardwire")
+local harness = require("../harness")
 local eq = harness.eq
 
 eq("parseGet standard output", cardwire.parseGet("Current Mode: Smart\nAvailable Mode: integrated, hybrid, smart\n"), {

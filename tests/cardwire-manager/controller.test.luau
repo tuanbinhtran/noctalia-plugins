@@ -1,10 +1,10 @@
 --!nonstrict
 -- Drives the service state machine with a fake Noctalia host: a manual clock,
 -- runAsync calls captured for the test to complete, and an in-memory state store.
-local cardwire = require("../cardwire-manager/lib/cardwire")
-local protocol = require("../cardwire-manager/lib/protocol")
-local controller = require("../cardwire-manager/lib/controller")
-local harness = require("./harness")
+local cardwire = require("../../cardwire-manager/lib/cardwire")
+local protocol = require("../../cardwire-manager/lib/protocol")
+local controller = require("../../cardwire-manager/lib/controller")
+local harness = require("../harness")
 local eq = harness.eq
 
 local GET_OK = { exitCode = 0, stdout = "Current Mode: Smart\nAvailable Mode: integrated, hybrid, smart\n", stderr = "", timedOut = false }
