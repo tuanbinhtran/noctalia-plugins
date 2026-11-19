@@ -28,9 +28,9 @@ function M.new(host, model, protocol, ActionModule)
       lastView = value.view
     end
   end
-  local actions = if ActionModule then ActionModule.new(host, function(key) return model:resolve(key) end, function(result)
+  local actions = ActionModule.new(host, function(key) return model:resolve(key) end, function(result)
     host.state.set(protocol.RESULT_KEY, result)
-  end, protocol.quote) else nil
+  end, protocol.quote)
   host.state.watch(protocol.CMD_KEY, function(request)
     if type(request) ~= "table" then return end
     if request.action == "mark-seen" then
@@ -40,13 +40,8 @@ function M.new(host, model, protocol, ActionModule)
         error = if changed then nil else host.tr("action.unavailable"),
       })
       if changed then publish() end
-    elseif actions then
-      actions:dispatch(request)
     else
-      host.state.set(protocol.RESULT_KEY, {
-        id = request.id, kind = request.action, key = request.key, pending = false,
-        error = host.tr("action.unavailable"),
-      })
+      actions:dispatch(request)
     end
   end)
 

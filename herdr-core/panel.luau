@@ -18,6 +18,7 @@ local previewRequest = nil
 local pendingAttach = nil
 local pendingRaise = nil
 local pendingLaunch = nil
+local launchNotice = nil
 local previewText = nil
 local previewIncomplete = false
 local pendingOpen = nil
@@ -104,7 +105,7 @@ local function renderRow(row)
   if row.signal ~= nil then subtitle ..= ` · {tr("panel.signal", { signal = row.signal })}` end
   if row.stale then subtitle ..= ` · {tr("status.stale")}` end
   return ui.column({ key = row.key, gap = 6, padding = 10, radius = 10, fill = "on_surface/0.05", paddingH = 10 }, {
-    ui.label({ text = string.rep("  ", math.min(row.depth or 0, 6)) .. title, fontWeight = "medium", maxLines = 1 }),
+    ui.label({ text = (tab == "all" and string.rep("  ", math.min(row.depth or 0, 6)) or "") .. title, fontWeight = "medium", maxLines = 1 }),
     ui.label({ text = subtitle, fontSize = 12, color = "on_surface_variant" }),
     row.reason and ui.label({ text = row.reason, fontSize = 12, color = "on_surface_variant" }) or ui.spacer({ height = 0 }),
     rowActions(row),
@@ -136,11 +137,21 @@ local function renderNewRun(children)
     onClick = function()
       local chosen = templateRows[math.clamp(templateChoice, 1, #templateRows)]
       if chosen and pendingLaunch == nil then
+        launchNotice = nil
         pendingLaunch = send("launch", { template = chosen.name, cwd = cwd, task = taskText })
         render()
       end
     end,
   }))
+  if launchNotice then
+    if launchNotice.error then
+      table.insert(children, ui.label({ text = launchNotice.error, color = "error", maxLines = 3 }))
+    elseif launchNotice.warning then
+      table.insert(children, ui.label({ text = launchNotice.warning, color = "tertiary", maxLines = 3 }))
+    elseif launchNotice.address then
+      table.insert(children, ui.label({ text = tr("panel.launched", { address = launchNotice.address }), color = "primary" }))
+    end
+  end
 end
 render = function()
   if not open then return end
@@ -219,7 +230,11 @@ noctalia.state.watch(Protocol.RESULT_KEY, function(value)
   end
   if value.id == pendingOpen and value.error then pendingOpen = nil end
   if value.id == pendingAttach and value.error then pendingAttach = nil end
-  if value.id == pendingLaunch then pendingLaunch = nil end
+  if value.id == pendingLaunch then
+    pendingLaunch = nil
+    launchNotice = value
+    if noticeId == value.id then noticeId = nil; notice = nil end
+  end
   if value.kind == "attached" and not value.error and open
     and (value.id == pendingOpen or value.id == pendingAttach)
   then

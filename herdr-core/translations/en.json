@@ -1,7 +1,8 @@
 {
   "bar": {
     "offline": "Herdr Core is disconnected",
-    "attention": "{count} runs need attention",
+    "attention.one": "{count} run needs attention",
+    "attention.other": "{count} runs need attention",
     "summary": "Herdr Core"
   },
   "status": {

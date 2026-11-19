@@ -2,6 +2,7 @@
 local h = require("../harness")
 local Model = require("../../herdr-core/lib/model")
 local Controller = require("../../herdr-core/lib/controller")
+local Actions = require("../../herdr-core/lib/actions")
 local protocol = require("../../herdr-core/lib/protocol")
 
 local function fixture(enabled)
@@ -35,7 +36,7 @@ local function fixture(enabled)
     notify = function(title, body) table.insert(f.notices, { title, body }) end,
   }
   f.model = Model.new()
-  f.controller = Controller.new(host, f.model, protocol)
+  f.controller = Controller.new(host, f.model, protocol, Actions)
   f.controller:start()
   function f:line(raw, decoded)
     self.json[raw] = decoded

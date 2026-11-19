@@ -1,7 +1,7 @@
 --!nonstrict
 local Protocol = require("./lib/protocol.luau")
-Protocol.bind(noctalia)
 local tr = noctalia.tr
+local trp = noctalia.trp
 local status = { view = { feed = "loading", attention = {}, tone = "neutral" } }
 
 local colors = { offline = "error", urgent = "error", done = "primary", working = "tertiary", neutral = "on_surface" }
@@ -14,7 +14,7 @@ local function render()
   barWidget.setGlyphColor(colors[tone] or colors.neutral)
   barWidget.setColor("on_surface")
   barWidget.setText(count > 0 and tostring(count) or "")
-  local description = view.feed == "stale" and tr("bar.offline") or tr("bar.attention", { count = count })
+  local description = view.feed == "stale" and tr("bar.offline") or trp("bar.attention", count)
   barWidget.setTooltip({ { tr("bar.summary"), description } })
 end
 noctalia.state.watch(Protocol.STATUS_KEY, function(value)
@@ -22,5 +22,4 @@ noctalia.state.watch(Protocol.STATUS_KEY, function(value)
 end)
 status = noctalia.state.get(Protocol.STATUS_KEY) or status
 
-function update() render() end
 function onClick() noctalia.togglePanel(Protocol.PANEL_ID) end
