@@ -51,6 +51,7 @@
     "invalid_cwd": "Choose an existing local working directory",
     "template_missing": "That template no longer exists",
     "message_not_sent": "The run started, but the first task message was not delivered: {reason}",
+    "launch_pending": "The run may still be starting. Check the All tab before you launch again.",
     "command_failed": "Command failed: {error}"
   },
   "notification": {

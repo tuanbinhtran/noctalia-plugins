@@ -15,8 +15,8 @@ function M.new(host, resolve, complete, quote)
   local function errorText(key)
     return host.tr(key)
   end
-  local function run(argv, callback)
-    local ok = host.runAsync(argv, callback)
+  local function run(argv, callback, timeout)
+    local ok = host.runAsync(argv, callback, timeout)
     return ok ~= false
   end
   local function decode(result)
@@ -198,7 +198,10 @@ function M.new(host, resolve, complete, quote)
     if not run({ "hc", "read", "--json", "--lines", "40", address }, function(result)
       if previewRequest ~= id then return end
       local selected = current(key)
-      if not selected or selected.address ~= address then return end
+      if not selected or selected.address ~= address then
+        finish(id, "preview", key, { error = errorText("action.unavailable") })
+        return
+      end
       local body = decode(result)
       if type(body) ~= "table" or type(body.text) ~= "string" then
         finish(id, "preview", key, { error = commandError(result, body) })
@@ -275,6 +278,10 @@ function M.new(host, resolve, complete, quote)
       end
       if not found then completeLaunch({ error = errorText("action.template_missing") }); return end
       if not run({ "hc", "run", "--json", "--bg", "--no-parent", "--cwd", cwd, "--", name, " " .. task }, function(launched)
+        if launched and launched.timedOut == true then
+          completeLaunch({ warning = host.tr("action.launch_pending") })
+          return
+        end
         local payload = decode(launched)
         if type(payload) ~= "table" or payload.error ~= nil then
           completeLaunch({ error = commandError(launched, payload) })
@@ -289,7 +296,7 @@ function M.new(host, resolve, complete, quote)
           fields.warning = host.tr("action.message_not_sent", { reason = payload.first_message.reason or "" })
         end
         completeLaunch(fields)
-      end) then
+      end, 60000) then
         completeLaunch({ error = errorText("action.failed") })
       end
     end) then
@@ -337,8 +344,7 @@ function M.new(host, resolve, complete, quote)
     elseif kind == "preview" then publishPreview(id, key)
     elseif kind == "cancel-preview" then previewRequest = nil
     elseif kind == "templates" then templates(id)
-    elseif kind == "launch" then launch(id, request)
-    elseif kind == "mark-seen" then finish(id, kind, key, { error = errorText("action.invalid") }) end
+    elseif kind == "launch" then launch(id, request) end
   end
   return actions
 end

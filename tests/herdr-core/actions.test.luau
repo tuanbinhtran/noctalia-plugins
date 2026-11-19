@@ -10,9 +10,9 @@ local function fixture()
     commandExists = function(name) return name ~= "herdr-app" or f.appInstalled end,
     getenv = function(key) return f.env[key] end,
     getConfig = function(key) return key == "open_in_terminal_only" and f.terminalOnly end,
-    runAsync = function(argv, callback)
+    runAsync = function(argv, callback, timeout)
       if f.rejectQueue then return false end
-      table.insert(f.commands, { argv = argv, callback = callback })
+      table.insert(f.commands, { argv = argv, callback = callback, timeout = timeout })
       return true
     end,
     runInTerminal = function(command)
@@ -97,6 +97,7 @@ f = fixture()
 f.rejectQueue = true
 f:dispatch("open-busy-queue", "open", { key = "run" })
 h.eq("rejected subprocess submission does not open a second viewer", #f.terminals, 0)
+h.eq("rejected subprocess submission publishes an error", type(f:last().error), "string")
 
 f = fixture()
 f:dispatch("open-3", "open", { key = "run" })
@@ -144,6 +145,13 @@ for _, result in ipairs(f.results) do
 end
 
 f = fixture()
+f:dispatch("preview-stale", "preview", { key = "run" })
+f.row.stale = true
+f:reply(1, { complete = true, text = "old preview" })
+h.eq("stale preview response reports unavailable", f:last() and f:last().error, "action.unavailable")
+
+
+f = fixture()
 f:dispatch("preview-ok", "preview", { key = "run" })
 f:reply(1, { complete = true, text = "A\27]0;title\27\\visible\7!\r\n" })
 h.eq("preview keeps text after a terminal title sequence", f:last().preview, "Avisible!\n")
@@ -184,9 +192,18 @@ f:dispatch("run-2", "launch", { template = "reviewer", cwd = "/tmp", task = "--o
 f:reply(2, { templates = { template } })
 h.eq("a task that starts with a flag stays one argument", f.commands[3].argv,
   { "hc", "run", "--json", "--bg", "--no-parent", "--cwd", "/tmp", "--", "reviewer", " --outlive-parent" })
+h.eq("hc run uses the startup timeout", f.commands[3].timeout, 60000)
 f:reply(3, { address = "t8", first_message = { sent = false, reason = "Agent did not become ready" } })
 h.eq("start retains address when task delivery fails", f:last().address, "t8")
 h.eq("user can distinguish launch from task delivery", type(f:last().warning), "string")
+
+f = fixture()
+f:dispatch("run-timeout", "launch", { template = "reviewer", cwd = "/tmp", task = "Run once" })
+f:reply(1, { templates = { template } })
+f.commands[2].callback({ timedOut = true, exitCode = -1, stdout = "", stderr = "" })
+h.eq("startup timeout publishes a warning", f:last().warning, "action.launch_pending")
+h.eq("startup timeout does not publish an error", f:last().error, nil)
+
 
 f = fixture()
 local request = { template = "reviewer", cwd = "/tmp", task = "Run once" }
