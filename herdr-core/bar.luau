@@ -21,5 +21,6 @@ noctalia.state.watch(Protocol.STATUS_KEY, function(value)
   if type(value) == "table" then status = value; render() end
 end)
 status = noctalia.state.get(Protocol.STATUS_KEY) or status
+render()
 
 function onClick() noctalia.togglePanel(Protocol.PANEL_ID) end

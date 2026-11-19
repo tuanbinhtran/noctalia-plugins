@@ -28,7 +28,7 @@ noctalia msg panel-toggle tuanbinhtran/herdr-core:panel
 
 - **Attention** lists blocked, errored, and unseen done runs. **Mark seen** hides a done run in Noctalia. It does not change Core.
 - **All** lists live terminals by machine. When a machine disconnects, its group shows **Stale** and its actions are off.
-- **History** lists finished terminals that Core keeps, with the exit code, signal, or reason.
+- **History** lists finished terminals that Core keeps, with the exit code, signal, or reason. When Core keeps many, History shows only the most recent finished runs.
 - **New run** launches a saved `hc` template with a task and a working directory.
 
 ## Run actions

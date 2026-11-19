@@ -2,7 +2,7 @@
 
 ## Scope
 
-`tuanbinhtran/herdr-core` is a Noctalia v5 bar widget, attached panel, and background service for Herdr Core (`hc`). It shows which runs need attention and attaches to them through the configured terminal. It also previews output, shows recent exits, and launches saved local templates. Target the tested interfaces of Noctalia 5.3 and `hc` 0.1.21. The plugin needs `hc` and Python 3 on `PATH`; Python is used only to supervise the event stream.
+`tuanbinhtran/herdr-core` is a Noctalia v5 bar widget, attached panel, and background service for Herdr Core (`hc`). It shows which runs need attention and opens runs in `herdr-app` or Noctalia's terminal. It also previews output, shows recent exits, and launches saved local templates. Target the tested interfaces of Noctalia 5.3 and `hc` 0.1.21. The plugin needs `hc` and Python 3 on `PATH`; Python is used only to supervise the event stream.
 
 The plugin uses the Core selected by Noctalia's environment, including `HC_SESSION` and `HC_SOCKET` when set. It does not discover other local Core sessions or configure remote machines. `hc events` can start Core when none is listening on Linux. Disabling or reloading the plugin must stop its watcher, not Core or any managed terminals.
 

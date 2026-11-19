@@ -20,6 +20,20 @@ with path.open('a') as log:
 if sys.argv[2] == 'large':
     terminals = [{'address': f'terminal-{i}', 'labels': 'x' * 1000} for i in range(200)]
     print(json.dumps({'seq': 1, 'terminals': terminals}), flush=True)
+elif sys.argv[2] == 'snapshot':
+    terminals = [
+        {'address': f'finished-{i}', 'created_ms': i, 'finished_ms': i + 1, 'state': 'finished',
+         'status': {'state': 'done'}, 'status_ms': i + 2, 'title': 't' * 60, 'parent': None,
+         'reason': 'complete', 'turn': i, 'labels': 'x' * 1000}
+        for i in range(500)
+    ]
+    terminals += [
+        {'address': f'live-{i}', 'created_ms': 1000 + i, 'state': 'working',
+         'status': {'state': 'working'}, 'status_ms': 1000 + i, 'title': 't' * 60,
+         'parent': None, 'reason': None, 'turn': i, 'labels': 'x' * 1000}
+        for i in range(50)
+    ]
+    print(json.dumps({'seq': 1, 'terminals': terminals}), flush=True)
 elif sys.argv[2] != 'silent':
     print(json.dumps({'seq': 1, 'terminals': [], 'pid': os.getpid(), 'old_alive': old_alive}), flush=True)
 if sys.argv[2] in ('stall', 'silent') or prior:
@@ -73,7 +87,6 @@ class EventStreamTest(unittest.TestCase):
                     frame = json.loads(raw)
                     self.line_lengths.append(len(raw))
                     del self.buffer[:end + 1]
-
                     if matches(frame):
                         return frame
                 if selector.select(max(0, deadline - time.monotonic())):
@@ -104,6 +117,26 @@ class EventStreamTest(unittest.TestCase):
         self.assertEqual([term["address"] for term in snapshot["terminals"]],
                          [f"terminal-{i}" for i in range(200)])
         self.assertTrue(all(length < 65536 for length in self.line_lengths))
+
+    def test_snapshot_keeps_live_and_newest_finished_records_under_line_limit(self):
+        self.start("snapshot")
+        snapshot = self.next_frame(lambda frame: "terminals" in frame)
+        terminals = snapshot["terminals"]
+        kept_finished = [terminal for terminal in terminals if terminal["state"] == "finished"]
+        dropped_finished = set(range(500)) - {
+            int(terminal["address"].removeprefix("finished-")) for terminal in kept_finished
+        }
+        self.assertTrue(all(length < 65536 for length in self.line_lengths))
+        self.assertEqual(
+            {terminal["address"] for terminal in terminals if terminal["state"] != "finished"},
+            {f"live-{i}" for i in range(50)},
+        )
+        self.assertTrue(kept_finished)
+        self.assertTrue(dropped_finished)
+        self.assertGreater(
+            min(terminal["finished_ms"] for terminal in kept_finished),
+            max(index + 1 for index in dropped_finished),
+        )
 
     def test_silent_child_keeps_alive_during_failure_and_backoff(self):
         self.start("silent")

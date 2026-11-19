@@ -150,7 +150,6 @@ f.row.stale = true
 f:reply(1, { complete = true, text = "old preview" })
 h.eq("stale preview response reports unavailable", f:last() and f:last().error, "action.unavailable")
 
-
 f = fixture()
 f:dispatch("preview-ok", "preview", { key = "run" })
 f:reply(1, { complete = true, text = "A\27]0;title\27\\visible\7!\r\n" })
@@ -203,7 +202,6 @@ f:reply(1, { templates = { template } })
 f.commands[2].callback({ timedOut = true, exitCode = -1, stdout = "", stderr = "" })
 h.eq("startup timeout publishes a warning", f:last().warning, "action.launch_pending")
 h.eq("startup timeout does not publish an error", f:last().error, nil)
-
 
 f = fixture()
 local request = { template = "reviewer", cwd = "/tmp", task = "Run once" }

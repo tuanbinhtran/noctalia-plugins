@@ -9,7 +9,6 @@ import sys
 import time
 
 
-
 TERMINAL_FIELDS = (
     "address", "created_ms", "status", "parent", "name", "title", "state",
     "status_ms", "finished_ms", "exit_code", "signal", "reason", "keep",
@@ -43,7 +42,26 @@ def compact_frame(frame):
             compact_terminal(terminal) if isinstance(terminal, dict) else terminal
             for terminal in terminals
         ]
-        return json.dumps(frame, separators=(",", ":")).encode()
+        encoded = json.dumps(frame, separators=(",", ":")).encode()
+        if len(encoded) > 60000:
+            finished = sorted(
+                (
+                    terminal for terminal in target["terminals"]
+                    if isinstance(terminal, dict) and terminal.get("state") == "finished"
+                ),
+                key=lambda terminal: (
+                    terminal.get("finished_ms") is not None,
+                    terminal["finished_ms"] if isinstance(terminal.get("finished_ms"), (int, float)) else 0,
+                ),
+            )
+            for terminal in finished:
+                if len(encoded) <= 60000:
+                    break
+                target["terminals"] = [
+                    kept for kept in target["terminals"] if kept is not terminal
+                ]
+                encoded = json.dumps(frame, separators=(",", ":")).encode()
+        return encoded
     return None
 
 
@@ -53,6 +71,7 @@ def compact_terminal(terminal):
     if isinstance(status, dict):
         result["status"] = {"state": status["state"]} if "state" in status else {}
     return result
+
 
 def supervise(argv, *, silence=45, heartbeat=10, max_backoff=15):
     stopping = False
