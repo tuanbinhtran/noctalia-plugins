@@ -1,5 +1,4 @@
 --!nonstrict
--- [[service]] entry: inject the host and pure model into the feed controller.
 local Model = require("./lib/model.luau")
 local Protocol = require("./lib/protocol.luau")
 local Controller = require("./lib/controller.luau")

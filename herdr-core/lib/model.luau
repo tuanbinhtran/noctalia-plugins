@@ -1,24 +1,5 @@
 --!nonstrict
--- Pure Herdr Core terminal model: folds the `hc events --json` stream (initial,
--- missed and replacement snapshots plus ordered events) and the `hc machine ls`
--- inventory into one read-only projection for the bar and panel. It performs no
--- I/O, requires nothing (Noctalia's require needs the ".luau" suffix, which the
--- standalone luau CLI rejects) and keeps only displayed fields: never screen,
--- argv, labels or task text.
---
--- View: { feed, attention, groups, history, tone }
---   feed       "loading" | "live" | "stale"
---   tone       "offline" | "urgent" | "done" | "working" | "neutral"
---   attention  Row[] blocked/error first, then unseen done, newest change first
---   groups     { machine: string ("" = local), stale: boolean, rows: Row[] }[]
---              local group first, then machines by name; rows are live terminals
---              in tree display order (depth 0 = root)
---   history    finished Row[], newest finish first
--- Row: { key, address, machine, parent, label, state, status, statusAt,
---   finishedAt, exitCode, signal, reason, stale, recovering, unseenDone, depth }
---   status nil means Unreported; depth is only meaningful inside groups[].rows.
--- The view and its rows are shared until the next change: treat them as read-only.
--- Notice: { key, label, status }
+-- The bar and panel share the cached view. Do not mutate its rows.
 local Model = {}
 Model.__index = Model
 
@@ -54,8 +35,7 @@ local function naturalKey(value)
   end))
 end
 
--- Terminal identity is its Core address plus creation time: addresses are reused
--- after a removal, creation times are not.
+-- Core reuses addresses, so include creation time in the terminal key.
 local function record(t)
   local created = num(t.created_ms) or 0
   local status = nil
@@ -84,11 +64,7 @@ local function record(t)
   }
 end
 
--- Attaches completion-episode bookkeeping to a record built from a Core record
--- (snapshot, created or restarted). `prev` is the record with the same identity
--- we already knew, if any. A snapshot never alerts, but it may prove a new
--- episode happened while we were not looking: a different turn, a later Core
--- status time, or a done we saw not being done.
+-- A snapshot can reveal a new completion, but never sends a notification.
 local function adopt(rec, prev, turn)
   local ep
   if prev == nil then
@@ -114,11 +90,11 @@ end
 function Model.new()
   return setmetatable({
     feed = "loading",
-    expectSnapshot = true, -- a bare snapshot is valid: first subscription or after feed-down
+    expectSnapshot = true,
     seq = 0,
-    terms = {}, -- address -> record
-    states = {}, -- machine name -> state, from the last successful inventory
-    known = {}, -- machine names in the last successful inventory (this subscription)
+    terms = {},
+    states = {},
+    known = {}, -- Machines listed in this subscription's last successful inventory.
     cache = nil,
     index = nil,
   }, Model)
@@ -179,9 +155,8 @@ local function status(self, rec, data, nowMs, notices)
   rec.statusAt = nowMs
   rec.ep.statusMs = nil -- the event carries no Core time
   if before == "working" then
-    -- Core bumps `turn` as the root leaves working, before it publishes the
-    -- status and turn frames; predict it so a reconnect snapshot that carries
-    -- the same turn is not mistaken for a new episode. A turn event overrides.
+    -- Core increments turn before sending the status and turn events.
+    -- Predict it so a reconnect between those events preserves Mark seen.
     rec.ep.turn += 1
   end
   if word == "done" then
@@ -222,7 +197,6 @@ local function applyEvent(self, kind, address, data, nowMs, notices)
   if kind == "status" then
     status(self, rec, data, nowMs, notices)
   elseif kind == "turn" then
-    -- Same transition as the status edge that preceded it: metadata only.
     rec.ep.turn = num(data.turn) or rec.ep.turn
   elseif kind == "title" then
     rec.title = text(data.title)
@@ -248,10 +222,8 @@ local function applyEvent(self, kind, address, data, nowMs, notices)
     rec.pid = nil
     self.cache = nil
   end
-  -- labels, size, foreground, doc and future types do not change the view.
 end
 
--- Returns the alerts for observed live status edges; snapshots never alert.
 function Model:apply(frame, nowMs)
   local notices = {}
   if type(frame) ~= "table" then
@@ -290,12 +262,10 @@ function Model:apply(frame, nowMs)
       applyEvent(self, params.type, params.terminal, params.data, nowMs, notices)
     end
   end
-  -- heartbeat is liveness, not terminal state: the supervisor tracks it.
   return notices
 end
 
--- A missing supervisor marker is a local delivery timeout, not proof that Core
--- disconnected. Preserve the subscription so a matching Core heartbeat can resume it.
+-- A watchdog timeout does not end the Core subscription. A heartbeat can restore it.
 function Model:setWatchdogStale()
   if self.feed ~= "stale" then
     self.feed = "stale"
@@ -323,14 +293,11 @@ function Model:setFeedDown()
   self.expectSnapshot = true
 end
 
--- Applies a successful `hc machine ls` result ({name, state}[]), or nil when the
--- query failed or is unconfirmed: nothing is confirmed connected then, but every
--- remote row and group is retained as stale. Only a successful inventory that no
--- longer lists a previously inventoried machine removes it.
+-- A failed inventory leaves remote rows visible but stale.
+-- Remove rows only when a successful inventory no longer lists their machine.
 function Model:setMachines(machines)
   local old = self.states
   if machines == nil then
-    -- Only a machine that was confirmed connected changes the projection.
     for _, state in old do
       if state == "connected" then
         self.cache = nil
@@ -376,7 +343,6 @@ function Model:setMachines(machines)
   self.states = states
 end
 
--- Dismisses the current done episode of one terminal identity.
 function Model:markSeen(key)
   for _, rec in self.terms do
     if rec.key == key then
@@ -416,8 +382,8 @@ local function creationOrder(a, b)
   return a.sortKey < b.sortKey
 end
 
--- Appends one group's live records to `rows` in tree order. A parent outside the
--- group, absent, or that would close a cycle stays a label on the row.
+-- Show the parent as a label when nesting would cross groups or create a cycle,
+-- or when the parent is missing.
 local function layout(recs, rowOf)
   table.sort(recs, creationOrder)
   local byAddress = {}

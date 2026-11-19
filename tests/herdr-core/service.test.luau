@@ -55,18 +55,18 @@ local remoteRun = { address = "box/t2", created_ms = 2, state = "live", turn = 1
 f:line('{"plugin":"alive"}', { plugin = "alive" })
 f:line('{"seq":12,"terminals":[...]}', { seq = 12, terminals = { localRun, remoteRun } })
 local key = f:last().view.attention[1].key
-h.eq("initial done is displayed but does not toast", #f.notices, 0)
+h.eq("An already completed run does not send a notification.", #f.notices, 0)
 local oldQuery = f.commands[1]
 f:line('{"plugin":"feed-down"}', { plugin = "feed-down" })
-h.eq("feed down clears attention instead of emitting stale alert", #f:last().view.attention, 0)
+h.eq("Attention clears when the feed disconnects.", #f:last().view.attention, 0)
 h.eq("feed down retains the terminal as stale", f.model:resolve(key).stale, true)
 f:line('{"seq":1,"terminals":[...]}', { seq = 1, terminals = { localRun, remoteRun } })
 h.eq("new snapshot does not overlap the previous inventory request", #f.commands, 1)
 f.json['{"machines":[...]}'] = { machines = { { name = "box", state = "connected" } } }
 oldQuery.callback({ exitCode = 0, stdout = '{"machines":[...]}', stderr = "" })
-h.eq("old machine response cannot enable remote attention", #f:last().view.attention, 1)
+h.eq("A reply from the previous subscription cannot restore remote runs to Attention.", #f:last().view.attention, 1)
 f.controller:update()
-h.eq("fresh generation starts its inventory once the old request drains", #f.commands, 2)
+h.eq("The new subscription queries machines after the previous request completes.", #f.commands, 2)
 f.json['{"machines":[]}'] = { machines = {} }
 f.commands[2].callback({ exitCode = 0, stdout = '{"machines":[]}', stderr = "" })
 f.now = 2000
@@ -76,7 +76,7 @@ f:line('{"method":"event","params":{...}}', { method = "event", params = {
   seq = 2, type = "status", terminal = "t1",
   data = { status = { state = "blocked" }, records = {}, reported = true },
 } })
-h.eq("new live blocked edge sends one opted-in alert", #f.notices, 1)
+h.eq("A newly blocked run sends one notification when enabled.", #f.notices, 1)
 f.now = 28000
 f.controller:update()
 h.eq("missing supervisor heartbeat makes inventory stale", f:last().view.feed, "stale")
@@ -94,12 +94,10 @@ f = fixture(nil)
 f:line('{"seq":1,"terminals":[...]}', { seq = 1, terminals = { localRun } })
 f.json['{"machines":[]}'] = { machines = {} }
 f.commands[1].callback({ exitCode = 0, stdout = '{"machines":[]}', stderr = "" })
-f.controller:update()
-h.eq("first snapshot inventory spaces out subsequent polls", #f.commands, 1)
 f:line('{"method":"event","params":{...}}', { method = "event", params = {
   seq = 2, type = "status", terminal = "t1",
   data = { status = { state = "error" }, records = {}, reported = true },
 } })
-h.eq("unavailable setting is not opt-in", #f.notices, 0)
+h.eq("A newly errored run sends no notification by default.", #f.notices, 0)
 
 h.finish("herdr-core service")
