@@ -17,8 +17,12 @@ prior = path.read_text().splitlines() if path.exists() else []
 old_alive = bool(prior and pathlib.Path('/proc', prior[-1]).exists())
 with path.open('a') as log:
     print(os.getpid(), file=log)
-print(json.dumps({'seq': 1, 'terminals': [], 'pid': os.getpid(), 'old_alive': old_alive}), flush=True)
-if sys.argv[2] == 'stall' or prior:
+if sys.argv[2] == 'large':
+    terminals = [{'address': f'terminal-{i}', 'labels': 'x' * 1000} for i in range(200)]
+    print(json.dumps({'seq': 1, 'terminals': terminals}), flush=True)
+elif sys.argv[2] != 'silent':
+    print(json.dumps({'seq': 1, 'terminals': [], 'pid': os.getpid(), 'old_alive': old_alive}), flush=True)
+if sys.argv[2] in ('stall', 'silent') or prior:
     time.sleep(30)
 """
 WRAPPER = """
@@ -33,6 +37,7 @@ class EventStreamTest(unittest.TestCase):
         folder = self.enterContext(tempfile.TemporaryDirectory())
         self.child_log = Path(folder) / "children"
         self.buffer = bytearray()
+        self.line_lengths = []
 
     def start(self, mode):
         self.proc = subprocess.Popen(
@@ -64,8 +69,11 @@ class EventStreamTest(unittest.TestCase):
             selector.register(self.proc.stdout, selectors.EVENT_READ)
             while time.monotonic() < deadline:
                 while (end := self.buffer.find(b"\n")) >= 0:
-                    frame = json.loads(self.buffer[:end])
+                    raw = bytes(self.buffer[:end])
+                    frame = json.loads(raw)
+                    self.line_lengths.append(len(raw))
                     del self.buffer[:end + 1]
+
                     if matches(frame):
                         return frame
                 if selector.select(max(0, deadline - time.monotonic())):
@@ -88,6 +96,26 @@ class EventStreamTest(unittest.TestCase):
 
     def test_silent_watcher_is_reaped_before_replacement(self):
         self.check_replacement("stall")
+
+    def test_large_snapshot_is_compacted_before_relay(self):
+        self.start("large")
+        snapshot = self.next_frame(lambda frame: "terminals" in frame)
+        self.assertEqual(len(snapshot["terminals"]), 200)
+        self.assertEqual([term["address"] for term in snapshot["terminals"]],
+                         [f"terminal-{i}" for i in range(200)])
+        self.assertTrue(all(length < 65536 for length in self.line_lengths))
+
+    def test_silent_child_keeps_alive_during_failure_and_backoff(self):
+        self.start("silent")
+        alive_before_down = 0
+        while True:
+            frame = self.next_frame(lambda frame: frame.get("plugin") in ("alive", "feed-down"))
+            if frame.get("plugin") == "feed-down":
+                break
+            alive_before_down += 1
+        self.assertGreaterEqual(alive_before_down, 3)
+        self.assertEqual(self.next_frame(lambda frame: frame.get("plugin") == "alive"),
+                         {"plugin": "alive"})
 
     def test_cancellation_reaps_running_child(self):
         self.start("stall")

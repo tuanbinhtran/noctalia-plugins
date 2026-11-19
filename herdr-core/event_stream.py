@@ -9,6 +9,51 @@ import sys
 import time
 
 
+
+TERMINAL_FIELDS = (
+    "address", "created_ms", "status", "parent", "name", "title", "state",
+    "status_ms", "finished_ms", "exit_code", "signal", "reason", "keep",
+    "pid", "turn",
+)
+
+
+def compact_frame(frame):
+    terminals = None
+    if not isinstance(frame, dict):
+        return None
+    if frame.get("method") is None and isinstance(frame.get("terminals"), list):
+        terminals = frame["terminals"]
+        target = frame
+    elif frame.get("method") == "missed":
+        params = frame.get("params")
+        if isinstance(params, dict) and isinstance(params.get("terminals"), list):
+            terminals = params["terminals"]
+            target = params
+    elif frame.get("method") == "event":
+        params = frame.get("params")
+        if (
+            isinstance(params, dict)
+            and params.get("type") in ("created", "restarted")
+            and isinstance(params.get("data"), dict)
+        ):
+            params["data"] = compact_terminal(params["data"])
+            return json.dumps(frame, separators=(",", ":")).encode()
+    if terminals is not None:
+        target["terminals"] = [
+            compact_terminal(terminal) if isinstance(terminal, dict) else terminal
+            for terminal in terminals
+        ]
+        return json.dumps(frame, separators=(",", ":")).encode()
+    return None
+
+
+def compact_terminal(terminal):
+    result = {key: terminal[key] for key in TERMINAL_FIELDS if key in terminal}
+    status = result.get("status")
+    if isinstance(status, dict):
+        result["status"] = {"state": status["state"]} if "state" in status else {}
+    return result
+
 def supervise(argv, *, silence=45, heartbeat=10, max_backoff=15):
     stopping = False
 
@@ -72,9 +117,6 @@ def supervise(argv, *, silence=45, heartbeat=10, max_backoff=15):
                         for raw in pieces:
                             if raw.endswith(b"\r"):
                                 raw = raw[:-1]
-                            if raw and not emit_raw(raw):
-                                stopping = True
-                                break
                             try:
                                 frame = json.loads(raw)
                                 saw_snapshot = saw_snapshot or (
@@ -82,8 +124,12 @@ def supervise(argv, *, silence=45, heartbeat=10, max_backoff=15):
                                     and isinstance(frame.get("seq"), int)
                                     and isinstance(frame.get("terminals"), list)
                                 )
+                                output = compact_frame(frame) or raw
                             except (UnicodeDecodeError, json.JSONDecodeError):
-                                pass
+                                output = raw
+                            if not emit_raw(output):
+                                stopping = True
+                                break
                         if stopping:
                             break
                 if saw_snapshot:
