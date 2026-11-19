@@ -56,12 +56,12 @@ f:reply(1, placed)
 h.eq("placed run focuses its current app pane", f.commands[2].argv,
   { "herdr-app", "do", "pane.focus", "--terminal", "box/t7" })
 f:reply(2, { ok = true })
-h.eq("Opening a run in the app asks the panel to close.", f:last().kind, "open-app")
-h.eq("Opening in the app does not open another viewer.", #f.terminals, 0)
-h.eq("The plugin does not raise the app before the panel closes.", #f.commands, 2)
+h.eq("app open asks the panel to close", f:last().kind, "open-app")
+h.eq("app open does not start a terminal viewer", #f.terminals, 0)
+h.eq("app is not raised before the panel closes", #f.commands, 2)
 f:dispatch("ack-1", "raise-app", { openedId = "open-1" })
 f:dispatch("ack-2", "raise-app", { openedId = "open-1" })
-h.eq("A duplicate close acknowledgement does not raise the app twice.", #f.commands, 3)
+h.eq("a repeated close acknowledgement raises the app once", #f.commands, 3)
 h.eq("raise uses the same desktop app", f.commands[3].argv, { "herdr-app" })
 
 f = fixture()
@@ -70,10 +70,10 @@ f:dispatch("niri-open", "open", { key = "run" })
 f:reply(1, placed)
 f:reply(2, { ok = true })
 f:dispatch("niri-ack", "raise-app", { openedId = "niri-open" })
-h.eq("Niri lists windows before focusing Herdr.", f.commands[3].argv,
+h.eq("on Niri, raise lists windows first", f.commands[3].argv,
   { "niri", "msg", "--json", "windows" })
 f:reply(3, { { id = 8, app_id = "herdr-app" }, { id = 12, app_id = "terminal", title = "Herdr" } })
-h.eq("Niri focuses the Herdr app, not a terminal titled Herdr.", f.commands[4].argv,
+h.eq("Niri focuses the herdr-app window, not a window titled Herdr", f.commands[4].argv,
   { "niri", "msg", "action", "focus-window", "--id", "8" })
 f:reply(4, nil)
 h.eq("successful compositor focus needs no app relaunch", #f.commands, 4)
@@ -81,7 +81,7 @@ h.eq("successful compositor focus needs no app relaunch", #f.commands, 4)
 f = fixture()
 f:dispatch("open-2", "open", { key = "run" })
 f:reply(1, empty)
-h.eq("The app previews an unplaced run without creating a tab.", f.commands[2].argv,
+h.eq("an unplaced run opens as a peek, not a new tab", f.commands[2].argv,
   { "herdr-app", "do", "terminal.peek", "--terminal", "box/t7" })
 f:reply(2, { error = "no running terminal" })
 h.eq("app rejection is reported even with zero exit status", type(f:last().error), "string")
@@ -91,7 +91,7 @@ f = fixture()
 f:dispatch("open-reject-path", "open", { key = "run" })
 f:reply(1, empty)
 f:reply(2, nil, 1, "No such file or directory while handling an app command")
-h.eq("An unrelated ENOENT does not trigger terminal fallback.", #f.terminals, 0)
+h.eq("an unrelated ENOENT does not fall back to a terminal", #f.terminals, 0)
 
 f = fixture()
 f.rejectQueue = true
@@ -123,7 +123,7 @@ f:reply(1, placed)
 h.eq("stale row after app lookup returns an unavailable result", f:last().error, "action.unavailable")
 f.row = { key = "run", address = "box/t7", state = "live" }
 f:dispatch("open-after-stale-layout", "open", { key = "run" })
-h.eq("The user can retry after a stale lookup.", #f.commands, 2)
+h.eq("a stale lookup releases the busy guard", #f.commands, 2)
 
 f = fixture()
 f:dispatch("open-stale-action", "open", { key = "run" })
@@ -133,7 +133,7 @@ f:reply(2, { ok = true })
 h.eq("stale row after app action returns an unavailable result", f:last().error, "action.unavailable")
 f.row = { key = "run", address = "box/t7", state = "live" }
 f:dispatch("open-after-stale-action", "open", { key = "run" })
-h.eq("The user can retry after a stale app response.", #f.commands, 3)
+h.eq("a stale app response releases the busy guard", #f.commands, 3)
 
 f = fixture()
 f:dispatch("preview-1", "preview", { key = "run" })
@@ -146,7 +146,7 @@ end
 f = fixture()
 f:dispatch("preview-ok", "preview", { key = "run" })
 f:reply(1, { complete = true, text = "A\27]0;title\27\\visible\7!\r\n" })
-h.eq("Preview preserves text after a terminal title sequence.", f:last().preview, "Avisible!\n")
+h.eq("preview keeps text after a terminal title sequence", f:last().preview, "Avisible!\n")
 f:dispatch("preview-tail", "preview", { key = "run" })
 f:reply(2, { complete = false, text = string.rep("€", 6000) })
 h.eq("preview truncates only on complete UTF-8 characters", #f:last().preview, 16383)
@@ -182,7 +182,7 @@ f:dispatch("templates-2", "templates")
 f:reply(1, { templates = { template } })
 f:dispatch("run-2", "launch", { template = "reviewer", cwd = "/tmp", task = "--outlive-parent" })
 f:reply(2, { templates = { template } })
-h.eq("A task that starts with a flag stays one argument.", f.commands[3].argv,
+h.eq("a task that starts with a flag stays one argument", f.commands[3].argv,
   { "hc", "run", "--json", "--bg", "--no-parent", "--cwd", "/tmp", "--", "reviewer", " --outlive-parent" })
 f:reply(3, { address = "t8", first_message = { sent = false, reason = "Agent did not become ready" } })
 h.eq("start retains address when task delivery fails", f:last().address, "t8")
@@ -192,6 +192,6 @@ f = fixture()
 local request = { template = "reviewer", cwd = "/tmp", task = "Run once" }
 f:dispatch("launch-once", "launch", table.clone(request))
 f:dispatch("launch-again", "launch", table.clone(request))
-h.eq("Rapid launch clicks submit only one request.", #f.commands, 1)
+h.eq("rapid launch clicks send one request", #f.commands, 1)
 
 h.finish("herdr-core actions")

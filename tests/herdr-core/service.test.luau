@@ -55,18 +55,18 @@ local remoteRun = { address = "box/t2", created_ms = 2, state = "live", turn = 1
 f:line('{"plugin":"alive"}', { plugin = "alive" })
 f:line('{"seq":12,"terminals":[...]}', { seq = 12, terminals = { localRun, remoteRun } })
 local key = f:last().view.attention[1].key
-h.eq("An already completed run does not send a notification.", #f.notices, 0)
+h.eq("a done run in the first snapshot sends no notification", #f.notices, 0)
 local oldQuery = f.commands[1]
 f:line('{"plugin":"feed-down"}', { plugin = "feed-down" })
-h.eq("Attention clears when the feed disconnects.", #f:last().view.attention, 0)
+h.eq("attention clears when the feed goes down", #f:last().view.attention, 0)
 h.eq("feed down retains the terminal as stale", f.model:resolve(key).stale, true)
 f:line('{"seq":1,"terminals":[...]}', { seq = 1, terminals = { localRun, remoteRun } })
 h.eq("new snapshot does not overlap the previous inventory request", #f.commands, 1)
 f.json['{"machines":[...]}'] = { machines = { { name = "box", state = "connected" } } }
 oldQuery.callback({ exitCode = 0, stdout = '{"machines":[...]}', stderr = "" })
-h.eq("A reply from the previous subscription cannot restore remote runs to Attention.", #f:last().view.attention, 1)
+h.eq("an inventory reply from the old subscription cannot restore remote attention", #f:last().view.attention, 1)
 f.controller:update()
-h.eq("The new subscription queries machines after the previous request completes.", #f.commands, 2)
+h.eq("the new subscription queries machines after the old query returns", #f.commands, 2)
 f.json['{"machines":[]}'] = { machines = {} }
 f.commands[2].callback({ exitCode = 0, stdout = '{"machines":[]}', stderr = "" })
 f.now = 2000
@@ -76,7 +76,7 @@ f:line('{"method":"event","params":{...}}', { method = "event", params = {
   seq = 2, type = "status", terminal = "t1",
   data = { status = { state = "blocked" }, records = {}, reported = true },
 } })
-h.eq("A newly blocked run sends one notification when enabled.", #f.notices, 1)
+h.eq("a new blocked status sends one notification when alerts are on", #f.notices, 1)
 f.now = 28000
 f.controller:update()
 h.eq("missing supervisor heartbeat makes inventory stale", f:last().view.feed, "stale")
@@ -98,6 +98,6 @@ f:line('{"method":"event","params":{...}}', { method = "event", params = {
   seq = 2, type = "status", terminal = "t1",
   data = { status = { state = "error" }, records = {}, reported = true },
 } })
-h.eq("A newly errored run sends no notification by default.", #f.notices, 0)
+h.eq("a new error status sends no notification by default", #f.notices, 0)
 
 h.finish("herdr-core service")

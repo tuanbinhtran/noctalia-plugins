@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Supervise hc's event stream and relay newline-delimited JSON to Noctalia."""
+"""Supervise `hc events --json` and relay its JSON lines to Noctalia."""
 import json
 import os
 import selectors

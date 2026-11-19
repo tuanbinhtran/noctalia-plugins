@@ -28,7 +28,7 @@ local function machineOf(address)
   return ""
 end
 
--- Orders t2 before t10.
+-- Pad digit runs so t2 sorts before t10.
 local function naturalKey(value)
   return (string.gsub(value, "%d+", function(digits)
     return string.rep("0", math.max(0, 12 - #digits)) .. digits
@@ -64,7 +64,8 @@ local function record(t)
   }
 end
 
--- A snapshot can reveal a new completion, but never sends a notification.
+-- A snapshot can show a done episode that happened while the feed was down.
+-- Snapshots never send notifications.
 local function adopt(rec, prev, turn)
   local ep
   if prev == nil then
@@ -94,7 +95,7 @@ function Model.new()
     seq = 0,
     terms = {},
     states = {},
-    known = {}, -- Machines listed in this subscription's last successful inventory.
+    known = {}, -- Machines in this subscription's last successful inventory.
     cache = nil,
     index = nil,
   }, Model)
@@ -153,10 +154,10 @@ local function status(self, rec, data, nowMs, notices)
   end
   rec.status = word
   rec.statusAt = nowMs
-  rec.ep.statusMs = nil -- the event carries no Core time
+  rec.ep.statusMs = nil -- Status events carry no Core timestamp.
   if before == "working" then
-    -- Core increments turn before sending the status and turn events.
-    -- Predict it so a reconnect between those events preserves Mark seen.
+    -- Core increments `turn` before it sends the status and turn events.
+    -- Predict the increment so a reconnect between those events keeps Mark seen.
     rec.ep.turn += 1
   end
   if word == "done" then
@@ -235,7 +236,7 @@ function Model:apply(frame, nowMs)
       self.expectSnapshot = false
       self.feed = "live"
       self.seq = frame.seq
-      self.states = {} -- machine confirmation does not survive a new subscription
+      self.states = {} -- Each subscription confirms machines again.
       self.known = {}
       replace(self, frame.terminals)
     end
@@ -265,7 +266,7 @@ function Model:apply(frame, nowMs)
   return notices
 end
 
--- A watchdog timeout does not end the Core subscription. A heartbeat can restore it.
+-- A watchdog timeout keeps the Core subscription. A matching Core heartbeat resumes the live feed.
 function Model:setWatchdogStale()
   if self.feed ~= "stale" then
     self.feed = "stale"
@@ -382,8 +383,8 @@ local function creationOrder(a, b)
   return a.sortKey < b.sortKey
 end
 
--- Show the parent as a label when nesting would cross groups or create a cycle,
--- or when the parent is missing.
+-- Nest a row under its parent only when both rows are in the same group and no cycle forms.
+-- Otherwise show the parent address as a label.
 local function layout(recs, rowOf)
   table.sort(recs, creationOrder)
   local byAddress = {}

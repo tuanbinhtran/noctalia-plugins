@@ -1,30 +1,59 @@
 # Herdr Core
 
-A Noctalia bar widget and panel for [Herdr Core](https://github.com/herdrdev/herdr-core) (`hc`). Requires Noctalia v5 with plugin API 26, `hc` 0.1.21 or newer, and Python 3 on `PATH`.
+A Noctalia bar widget and panel for [Herdr Core](https://github.com/herdrdev/herdr-core) (`hc`). The widget counts runs that need attention. The panel previews, opens, and launches runs.
 
-Add **Herdr Core** in Settings → Bar, or include its entry in your existing bar configuration:
+## Requirements
+
+- Noctalia v5 with plugin API 26 or later.
+- `hc` 0.1.21 or later.
+- Python 3 on `PATH`. The plugin uses it to supervise `hc events --json`.
+- Optional: `herdr-app`, to open runs in the Herdr desktop app.
+
+## Add the widget
+
+Open **Settings** > **Bar** and add **Herdr Core**. To use the config file instead, add the widget to a bar:
 
 ```toml
 [bar.main]
 start = ["tuanbinhtran/herdr-core:bar"]
 ```
 
-Click the widget to open the panel, or run:
+To open the panel, click the widget or run:
 
 ```sh
 noctalia msg panel-toggle tuanbinhtran/herdr-core:panel
 ```
 
-- **Attention:** Blocked, errored and unseen done runs. **Mark seen** dismisses a completion in Noctalia, not in Core.
-- **All:** Live terminals grouped by machine, with disconnected groups marked stale. **Open** focuses the existing `herdr-app` pane or peeks at an unplaced run. If the app is absent, it attaches in Noctalia's configured terminal. **Open in terminal** always attaches there.
-- **History:** Exits retained by Core. **Preview** reads the screen and up to 40 scrollback lines on demand, capped at 16 KiB.
-- **New run:** Launch a saved local `hc` template with a task and working directory.
+## Panel tabs
 
-The app and plugin share live terminals when they use the same Core. On Niri, the plugin can focus the single existing Herdr app window. Enable **Always open in terminal** in plugin settings to skip app routing; an explicit `HC_SESSION` or `HC_SOCKET` in Noctalia's environment also skips it. The plugin does not monitor the older Herdr TUI.
+- **Attention** lists blocked, errored, and unseen done runs. **Mark seen** hides a done run in Noctalia. It does not change Core.
+- **All** lists live terminals by machine. When a machine disconnects, its group shows **Stale** and its actions are off.
+- **History** lists finished terminals that Core keeps, with the exit code, signal, or reason.
+- **New run** launches a saved `hc` template with a task and a working directory.
 
-Desktop alerts are off by default. Run state comes from OSC 7501 reports; terminals without one show **Unreported**. The event watcher may start Core on Linux. Disabling the plugin stops only its watcher, not Core or its terminals.
+## Run actions
+
+- **Preview** shows the screen and up to 40 lines of scrollback, capped at 16 KiB.
+- **Open** focuses the run's pane in `herdr-app`. If the run has no pane, **Open** shows it in a peek window without adding a tab. If `herdr-app` is not installed or not running, **Open** runs `hc attach` in Noctalia's terminal.
+- **Open in terminal** always runs `hc attach` in Noctalia's terminal.
+
+On Niri, the plugin focuses the `herdr-app` window when exactly one exists.
+
+## Settings
+
+- **Run alerts** sends a desktop notification when a run becomes blocked, errored, or done. It is off by default.
+- **Always open in terminal** makes **Open** skip `herdr-app`. The plugin also skips `herdr-app` when Noctalia's environment sets `HC_SESSION` or `HC_SOCKET`, because the app might use a different Core.
+
+## Run state
+
+- Status comes from OSC 7501 reports. A terminal that sends no report shows **Unreported**.
+- On Linux, `hc events` starts Core if Core is not running.
+- Disabling the plugin stops its event watcher. Core and its terminals keep running.
+- The plugin does not read the older Herdr TUI.
 
 ## Tests
+
+Run these commands from the repository root:
 
 ```sh
 ./scripts/test.sh herdr-core
