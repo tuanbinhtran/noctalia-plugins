@@ -79,52 +79,18 @@ function M.new(host, resolve, complete, quote)
       or string.find(err, "connection refused", 1, true) ~= nil
     return hasWindowError and hasSocketErrno
   end
-  local function attachOrError(id, row, result)
-    if isUnavailable(result) then attach(id, row)
-    else finish(id, "open", row.key, { error = host.tr("action.command_failed", {
-      error = (result and result.stderr) or "",
-    }) }) end
-  end
-  local function locate(address, layout)
-    if type(layout) ~= "table" or type(layout.spaces) ~= "table" then return nil, false end
+  local function isPlaced(address, layout)
+    if type(layout) ~= "table" or type(layout.spaces) ~= "table" then return nil end
     for _, space in layout.spaces do
-      if type(space) ~= "table" or type(space.tabs) ~= "table" then return nil, false end
+      if type(space) ~= "table" or type(space.tabs) ~= "table" then return nil end
       for _, tab in space.tabs do
-        if type(tab) ~= "table" or type(tab.terminals) ~= "table" then return nil, false end
+        if type(tab) ~= "table" or type(tab.terminals) ~= "table" then return nil end
         for _, terminal in tab.terminals do
-          if type(terminal) == "table" and terminal.terminal == address then return terminal, true end
+          if type(terminal) == "table" and terminal.terminal == address then return true end
         end
       end
     end
-    return nil, true
-  end
-  local function appAction(id, key, address, operation, release)
-    local row = current(key)
-    if not row or row.state ~= "live" or row.address ~= address then
-      release()
-      finish(id, "open", key, { error = errorText("action.unavailable") })
-      return
-    end
-    local argv = { "herdr-app", "do", operation, "--terminal", address }
-    if not run(argv, function(result)
-      release()
-      local selected = current(key)
-      if not selected or selected.state ~= "live" or selected.address ~= address then
-        finish(id, "open", key, { error = errorText("action.unavailable") })
-        return
-      end
-      local body = decode(result)
-      if not accepted(body) then
-        if isUnavailable(result) then attach(id, selected)
-        else finish(id, "open", key, { error = commandError(result, body) }) end
-        return
-      end
-      opened[id] = true
-      finish(id, "open-app", key)
-    end) then
-      release()
-      attachOrError(id, row, nil)
-    end
+    return false
   end
   local function open(id, key)
     local row = current(key)
@@ -136,26 +102,61 @@ function M.new(host, resolve, complete, quote)
     if not host.commandExists("herdr-app") then attach(id, row); return end
     busy[key] = id
     local address = row.address
-    local function release() if busy[key] == id then busy[key] = nil end end
-    if not run({ "herdr-app", "ls" }, function(result)
+    local function release()
+      if busy[key] == id then busy[key] = nil end
+    end
+    local function failOpen(message)
+      release()
+      finish(id, "open", key, { error = message })
+    end
+    local function selectedRun()
       local selected = current(key)
-      if not selected or selected.state ~= "live" or selected.address ~= address then
-        release()
-        finish(id, "open", key, { error = errorText("action.unavailable") })
-        return
+      if selected and selected.state == "live" and selected.address == address then
+        return selected
       end
+      failOpen(errorText("action.unavailable"))
+      return nil
+    end
+    local function attachIfAppAbsent(result, selected)
+      if not isUnavailable(result) then return false end
+      release()
+      attach(id, selected)
+      return true
+    end
+    local function onAppAction(result)
+      local selected = selectedRun()
+      if not selected then return end
+      local body = decode(result)
+      if accepted(body) then
+        release()
+        opened[id] = true
+        finish(id, "open-app", key)
+      elseif not attachIfAppAbsent(result, selected) then
+        failOpen(commandError(result, body))
+      end
+    end
+    local function onLayout(result)
+      local selected = selectedRun()
+      if not selected then return end
       local layout = decode(result)
       if not layout then
-        release()
-        attachOrError(id, selected, result)
+        if not attachIfAppAbsent(result, selected) then
+          failOpen(host.tr("action.command_failed", { error = (result and result.stderr) or "" }))
+        end
         return
       end
-      local terminal, valid = locate(address, layout)
-      if not valid then release(); finish(id, "open", key, { error = errorText("action.malformed_layout") }); return end
-      appAction(id, key, address, terminal and "pane.focus" or "terminal.peek", release)
-    end) then
-      release()
-      finish(id, "open", key, { error = errorText("action.failed") })
+      local placed = isPlaced(address, layout)
+      if placed == nil then
+        failOpen(errorText("action.malformed_layout"))
+        return
+      end
+      local operation = if placed then "pane.focus" else "terminal.peek"
+      if not run({ "herdr-app", "do", operation, "--terminal", address }, onAppAction) then
+        failOpen(host.tr("action.command_failed", { error = "" }))
+      end
+    end
+    if not run({ "herdr-app", "ls" }, onLayout) then
+      failOpen(errorText("action.failed"))
     end
   end
   local function stripOsc(value)
