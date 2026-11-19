@@ -1,0 +1,70 @@
+{
+  "bar": {
+    "offline": "Herdr Core is disconnected",
+    "attention": "{count} runs need attention",
+    "summary": "Herdr Core"
+  },
+  "status": {
+    "unreported": "Unreported",
+    "finished": "Finished",
+    "recovering": "Recovering",
+    "stale": "Stale",
+    "feed_unavailable": "Event feed unavailable",
+    "blocked": "Blocked",
+    "error": "Error",
+    "done": "Done",
+    "idle": "Ready",
+    "working": "Working"
+  },
+  "panel": {
+    "title": "Herdr Core",
+    "close": "Close",
+    "attention": "Attention",
+    "all": "All",
+    "history": "History",
+    "new_run": "New run",
+    "empty": "Nothing to show",
+    "local": "Local",
+    "parent": "parent {parent}",
+    "exit_code": "exit {code}",
+    "signal": "signal {signal}",
+    "mark_seen": "Mark seen",
+    "preview": "Preview",
+    "preview_title": "Terminal preview",
+    "open": "Open",
+    "attach": "Open in terminal",
+    "load_templates": "Load templates",
+    "cwd": "Working directory",
+    "task": "Describe the task",
+    "launch": "Launch run",
+    "launched": "Started {address}",
+    "preview_incomplete": "Terminal preview (incomplete or truncated)"
+  },
+  "action": {
+    "failed": "The action failed",
+    "unavailable": "This run is no longer available",
+    "busy": "An action is already in progress for this run",
+    "malformed_layout": "Herdr App returned an invalid terminal layout",
+    "attach_failed": "Could not open the terminal",
+    "invalid": "This action is invalid",
+    "invalid_launch": "Enter a template and a task under 4096 characters",
+    "invalid_cwd": "Choose an existing local working directory",
+    "template_missing": "That template no longer exists",
+    "message_not_sent": "The run started, but the first task message was not delivered: {reason}",
+    "command_failed": "Command failed: {error}"
+  },
+  "notification": {
+    "title": "Herdr Core run",
+    "body": "{label}: {status}"
+  },
+  "settings": {
+    "notifications_enabled": {
+      "label": "Run alerts",
+      "description": "Notify when a run is observed entering blocked, error, or done. Alerts are never replayed from snapshots."
+    },
+    "open_in_terminal_only": {
+      "label": "Always open in terminal",
+      "description": "Open runs with hc attach in Noctalia's terminal even when herdr-app is installed."
+    }
+  }
+}

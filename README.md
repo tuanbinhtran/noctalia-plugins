@@ -5,6 +5,7 @@ Noctalia v5 plugins. Each top-level directory with a `plugin.toml` is one plugin
 | Plugin | Description |
 | --- | --- |
 | [Cardwire Manager](cardwire-manager/README.md) | View and switch Cardwire GPU modes from the bar. |
+| [Herdr Core](herdr-core/README.md) | Watch Herdr Core agent runs from the bar; preview, open, and launch them. |
 
 ## Install
 
