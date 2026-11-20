@@ -199,8 +199,8 @@ function M.new(host, resolve, complete, quote)
     end
     return string.sub(value, 1, last)
   end
-  -- TUIs pad each row to the terminal width and end it with a border. In the narrower preview both would wrap.
-  -- Trim by scanning from the end. Pattern backtracking on padded rows exceeds Noctalia's script CPU budget.
+  -- TUIs pad each row to the terminal width and end it with a border. The preview is narrower, so the padding and the border would wrap onto extra lines.
+  -- Trim by scanning from the end. Luau patterns such as "%s+$" backtrack on long runs of spaces and exceed Noctalia's per-callback CPU budget.
   local function trimRow(line)
     line = trimEnd(line)
     for _, border in { "│", "┃", "║" } do

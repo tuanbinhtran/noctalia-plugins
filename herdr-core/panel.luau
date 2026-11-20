@@ -244,7 +244,7 @@ render = function()
     if view.feed == "stale" and #rows > 0 then
       table.insert(children, ui.label({ text = empty, color = "error" }))
     end
-    -- An open preview replaces the list, so it gets the panel's height. The selected card stays on top for its actions.
+    -- An open preview replaces the run list and takes the remaining height. The selected run's card stays above the preview for its actions.
     local preview = previewPane(selected)
     if preview then
       table.insert(children, renderCard(selected))
