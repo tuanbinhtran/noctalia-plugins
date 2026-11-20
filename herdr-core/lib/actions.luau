@@ -190,6 +190,28 @@ function M.new(host, resolve, complete, quote)
     table.insert(chunks, string.sub(value, first))
     return table.concat(chunks)
   end
+  local function trimEnd(value)
+    local last = #value
+    while last > 0 do
+      local byte = string.byte(value, last)
+      if byte ~= 32 and byte ~= 9 then break end
+      last -= 1
+    end
+    return string.sub(value, 1, last)
+  end
+  -- TUIs pad each row to the terminal width and end it with a border. In the narrower preview both would wrap.
+  -- Trim by scanning from the end. Pattern backtracking on padded rows exceeds Noctalia's script CPU budget.
+  local function trimRow(line)
+    line = trimEnd(line)
+    for _, border in { "│", "┃", "║" } do
+      if #line > #border and string.sub(line, -#border) == border then
+        local inner = string.sub(line, 1, #line - #border)
+        local trimmed = trimEnd(inner)
+        if #trimmed < #inner then return trimmed end
+      end
+    end
+    return line
+  end
   local function publishPreview(id, key)
     local row = current(key)
     if not row then finish(id, "preview", key, { error = errorText("action.unavailable") }); return end
@@ -213,6 +235,7 @@ function M.new(host, resolve, complete, quote)
       text = string.gsub(text, "\27[ -/]*[@-~]", "")
       text = string.gsub(text, "[%z\1-\8\11\12\14-\31\127]", "")
       text = string.gsub(text, "\r", "")
+      text = string.gsub(text, "[^\n]+", trimRow)
       local truncated = #text > 16384
       if truncated then
         text = string.sub(text, #text - 16383)

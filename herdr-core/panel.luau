@@ -50,30 +50,33 @@ local function selectTab(value)
   tab = value
   render()
 end
-local function rowTitle(row)
+local function rowStatus(row)
   local status = row.status or tr("status.unreported")
   if row.state == "finished" then status = tr("status.finished")
   elseif row.recovering then status = tr("status.recovering")
   elseif status == "blocked" or status == "error" or status == "done" or status == "working" or status == "idle" then
     status = tr("status." .. status)
   end
-  return `{row.label} · {status}`
+  return status
+end
+local function requestPreview(row)
+  clearPreview()
+  selectedKey = row.key
+  if not row.stale and not row.recovering then
+    previewRequest = send("preview", { key = row.key })
+  end
+  render()
 end
 local function rowActions(row)
   local enabled = not row.stale and not row.recovering
   local children = {}
   if row.unseenDone then
-    table.insert(children, ui.button({ text = tr("panel.mark_seen"), enabled = enabled, onClick = function() send("mark-seen", { key = row.key }) end }))
+    table.insert(children, ui.button({ glyph = "check", tooltip = tr("panel.mark_seen"), controlSize = "sm", enabled = enabled, onClick = function() send("mark-seen", { key = row.key }) end }))
   end
-  table.insert(children, ui.button({ text = tr("panel.preview"), enabled = enabled, onClick = function()
-    if selectedKey ~= row.key then clearPreview() end
-    selectedKey = row.key
-    previewText = nil
-    previewIncomplete = false
-    previewRequest = send("preview", { key = row.key })
-  end }))
+  table.insert(children, ui.button({ glyph = "eye", tooltip = tr("panel.preview"), controlSize = "sm", enabled = enabled,
+    onClick = function() requestPreview(row) end }))
   if row.state == "live" then
-    table.insert(children, ui.button({ text = tr("panel.open"), variant = "primary",
+    table.insert(children, ui.button({ text = tr("panel.open"), variant = "primary", controlSize = "sm",
       enabled = enabled and pendingOpen == nil and pendingAttach == nil,
       onClick = function()
         if pendingOpen == nil and pendingAttach == nil then
@@ -82,7 +85,7 @@ local function rowActions(row)
           render()
         end
       end }))
-    table.insert(children, ui.button({ text = tr("panel.attach"),
+    table.insert(children, ui.button({ glyph = "terminal", tooltip = tr("panel.attach"), controlSize = "sm",
       enabled = enabled and pendingOpen == nil and pendingAttach == nil,
       onClick = function()
         if pendingOpen == nil and pendingAttach == nil then
@@ -94,22 +97,62 @@ local function rowActions(row)
   end
   return ui.row({ gap = 6, align = "center" }, children)
 end
-local function renderRow(row)
-  if row.state == "group" then
-    return ui.label({ key = row.key, text = row.label, fontWeight = "bold", color = "primary" })
-  end
-  local title = rowTitle(row)
+local function rowSubtitle(row)
   local subtitle = row.address
   if row.parent then subtitle ..= ` · {tr("panel.parent", { parent = row.parent })}` end
   if row.exitCode ~= nil then subtitle ..= ` · {tr("panel.exit_code", { code = row.exitCode })}` end
   if row.signal ~= nil then subtitle ..= ` · {tr("panel.signal", { signal = row.signal })}` end
   if row.stale then subtitle ..= ` · {tr("status.stale")}` end
-  return ui.column({ key = row.key, gap = 6, padding = 10, radius = 10, fill = "on_surface/0.05", paddingH = 10 }, {
-    ui.label({ text = (tab == "all" and string.rep("  ", math.min(row.depth or 0, 6)) or "") .. title, fontWeight = "medium", maxLines = 1 }),
-    ui.label({ text = subtitle, fontSize = 12, color = "on_surface_variant" }),
-    row.reason and ui.label({ text = row.reason, fontSize = 12, color = "on_surface_variant" }) or ui.spacer({ height = 0 }),
-    rowActions(row),
+  return subtitle
+end
+local function previewPane(row)
+  if not row or (not previewRequest and previewText == nil) then return nil end
+  local lines = {}
+  if previewText == nil or previewText == "" then
+    lines = { ui.label({ text = tr(if previewText == "" then "panel.no_output" else "panel.reading"),
+      color = "on_surface_variant", fontSize = 12 }) }
+  else
+    -- One label per row keeps the terminal's columns. A row wider than the preview is cut off, not wrapped.
+    for line in string.gmatch(previewText .. "\n", "([^\n]*)\n") do
+      table.insert(lines, ui.label({ text = if line == "" then " " else line, fontFamily = "monospace", fontSize = 12, maxLines = 1 }))
+    end
+  end
+  return ui.column({ gap = 4, flexGrow = 1 }, {
+    ui.row({ align = "center", gap = 4 }, {
+      ui.label({ text = tr(if previewIncomplete then "panel.preview_incomplete" else "panel.preview_title"),
+        fontWeight = "bold", flexGrow = 1, maxLines = 1 }),
+      ui.button({ glyph = "x", tooltip = tr("panel.close_preview"), variant = "ghost", controlSize = "sm",
+        onClick = function()
+          clearPreview()
+          render()
+        end }),
+    }),
+    ui.scroll({ key = "output:" .. row.key, flexGrow = 1, padding = 8, radius = 8, fill = "on_surface/0.05", stickToBottom = true }, lines),
   })
+end
+local function statusBadge(row)
+  local color = if row.stale or row.recovering then "on_surface_variant"
+    elseif row.status == "blocked" or row.status == "error" then "error"
+    elseif row.status == "done" then "tertiary" else "primary"
+  return ui.row({ align = "center", paddingH = 7, paddingV = 3, radius = 8, fill = color .. "/0.12" }, {
+    ui.label({ text = rowStatus(row), fontSize = 12, color = color, maxLines = 1 }),
+  })
+end
+local function renderCard(row)
+  local indent = if tab == "all" then math.min(row.depth or 0, 6) else 0
+  local children = {
+    ui.row({ align = "center", gap = 8 }, {
+      ui.label({ text = string.rep("  ", indent) .. row.label, maxLines = 1, flexGrow = 1, fontWeight = "bold" }),
+      statusBadge(row),
+    }),
+    ui.label({ text = rowSubtitle(row), fontSize = 12, color = "on_surface_variant", maxLines = 2 }),
+  }
+  if row.reason and row.reason ~= "" then
+    table.insert(children, ui.label({ text = row.reason, fontSize = 12, color = "on_surface_variant", maxLines = 2 }))
+  end
+  table.insert(children, rowActions(row))
+  return ui.column({ key = row.key, gap = 6, padding = 10, radius = 10,
+    fill = if row.key == selectedKey then "primary/0.12" else "on_surface/0.05" }, children)
 end
 local function renderNewRun(children)
   local options = {}
@@ -156,28 +199,30 @@ end
 render = function()
   if not open then return end
   local view = snapshot.view or {}
+  local liveCount = 0
+  for _, group in view.groups or {} do liveCount += #group.rows end
+  local function tabButton(name, count)
+    return ui.button({ text = `{tr("panel." .. name)}  {count}`, selected = tab == name, controlSize = "sm",
+      onClick = function() selectTab(name) end })
+  end
   local children = {
     ui.row({ align = "center", gap = 8 }, {
       ui.label({ text = tr("panel.title"), fontSize = 18, fontWeight = "bold", flexGrow = 1 }),
-      ui.label({ text = view.feed == "stale" and tr("status.stale") or "", color = "error" }),
-      ui.button({ glyph = "x", variant = "ghost", tooltip = tr("panel.close"), onClick = function() panel.close() end }),
+      ui.button({ glyph = "plus", text = tr("panel.new_run"), selected = tab == "new", controlSize = "sm",
+        onClick = function() selectTab("new") end }),
+      ui.button({ glyph = "x", variant = "ghost", controlSize = "sm", tooltip = tr("panel.close"), onClick = function() panel.close() end }),
     }),
     ui.row({ gap = 6 }, {
-      ui.button({ text = tr("panel.attention"), selected = tab == "attention", onClick = function() selectTab("attention") end }),
-      ui.button({ text = tr("panel.all"), selected = tab == "all", onClick = function() selectTab("all") end }),
-      ui.button({ text = tr("panel.history"), selected = tab == "history", onClick = function() selectTab("history") end }),
-      ui.button({ text = tr("panel.new_run"), selected = tab == "new", onClick = function() selectTab("new") end }),
+      tabButton("attention", #(view.attention or {})),
+      tabButton("all", liveCount),
+      tabButton("history", #(view.history or {})),
     }),
   }
   if tab == "new" then
     renderNewRun(children)
   else
-    local rows = {}
-    if tab == "attention" then
-      for _, row in view.attention or {} do table.insert(rows, row) end
-    elseif tab == "history" then
-      for _, row in view.history or {} do table.insert(rows, row) end
-    else
+    local rows = if tab == "attention" then view.attention or {} elseif tab == "history" then view.history or {} else {}
+    if tab == "all" then
       for _, group in view.groups or {} do
         local label = group.machine == "" and tr("panel.local") or group.machine
         if group.stale then label ..= ` · {tr("status.stale")}` end
@@ -186,17 +231,35 @@ render = function()
         for _, row in group.rows do table.insert(rows, row) end
       end
     end
-    local rendered = {}
-    for _, row in rows do table.insert(rendered, renderRow(row)) end
-    if view.feed == "stale" then
-      table.insert(rendered, ui.label({ text = snapshot.feedError or tr("status.feed_unavailable"), color = "error" }))
-    elseif #rendered == 0 then
-      table.insert(rendered, ui.label({ text = tr("panel.empty"), color = "on_surface_variant" }))
+    local selected
+    if selectedKey then
+      for _, row in rows do
+        if row.key == selectedKey and row.state ~= "group" then selected = row; break end
+      end
+      if not selected then clearPreview() end
     end
-    table.insert(children, ui.scroll({ flexGrow = 1, gap = 8 }, rendered))
-    if selectedKey and previewText then
-      table.insert(children, ui.label({ text = tr(previewIncomplete and "panel.preview_incomplete" or "panel.preview_title"), fontWeight = "bold" }))
-      table.insert(children, ui.scroll({ height = 180, padding = 8, fill = "on_surface/0.05" }, { ui.label({ text = previewText, fontFamily = "monospace" }) }))
+    local empty = if view.feed == "stale" then snapshot.feedError or tr("status.feed_unavailable")
+      elseif view.feed == "loading" then tr("panel.loading")
+      else tr("panel.empty_" .. tab)
+    if view.feed == "stale" and #rows > 0 then
+      table.insert(children, ui.label({ text = empty, color = "error" }))
+    end
+    -- An open preview replaces the list, so it gets the panel's height. The selected card stays on top for its actions.
+    local preview = previewPane(selected)
+    if preview then
+      table.insert(children, renderCard(selected))
+      table.insert(children, preview)
+    else
+      local cards = {}
+      for _, row in rows do
+        table.insert(cards, if row.state == "group"
+          then ui.label({ key = row.key, text = row.label, fontSize = 12, fontWeight = "bold", color = "primary", maxLines = 1 })
+          else renderCard(row))
+      end
+      if #cards == 0 then
+        table.insert(cards, ui.label({ text = empty, color = "on_surface_variant", maxLines = 2 }))
+      end
+      table.insert(children, ui.scroll({ flexGrow = 1, gap = 8 }, cards))
     end
   end
   if notice and notice.error then

@@ -154,15 +154,20 @@ f = fixture()
 f:dispatch("preview-ok", "preview", { key = "run" })
 f:reply(1, { complete = true, text = "A\27]0;title\27\\visible\7!\r\n" })
 h.eq("preview keeps text after a terminal title sequence", f:last().preview, "Avisible!\n")
+f:dispatch("preview-frame", "preview", { key = "run" })
+f:reply(2, { complete = true,
+  text = "│ ls -la /tmp" .. string.rep(" ", 40) .. "│\n├── Output " .. string.rep("─", 20) .. "┤\n│ a | b   \n\n  plain   " })
+h.eq("preview drops the padding and right border of framed rows", f:last().preview,
+  "│ ls -la /tmp\n├── Output " .. string.rep("─", 20) .. "┤\n│ a | b\n\n  plain")
 f:dispatch("preview-tail", "preview", { key = "run" })
-f:reply(2, { complete = false, text = string.rep("€", 6000) })
+f:reply(3, { complete = false, text = string.rep("€", 6000) })
 h.eq("preview truncates only on complete UTF-8 characters", #f:last().preview, 16383)
 h.eq("truncated preview retains valid UTF-8", utf8.len(f:last().preview), 5461)
 h.eq("preview reports partial Core output", f:last().incomplete, true)
 f:dispatch("preview-error", "preview", { key = "run" })
 local stderr = '{"error":{"kind":"not_found","message":"remote terminal became unavailable"}}'
 f.replies[stderr] = { error = { kind = "not_found", message = "remote terminal became unavailable" } }
-f:reply(3, nil, 3, stderr)
+f:reply(4, nil, 3, stderr)
 h.eq("preview reports Core reason without its JSON envelope", f:last().error,
   "action.command_failed: remote terminal became unavailable")
 

@@ -33,7 +33,7 @@ noctalia msg panel-toggle tuanbinhtran/herdr-core:panel
 
 ## Run actions
 
-- **Preview** shows the screen and up to 40 lines of scrollback, capped at 16 KiB.
+- **Preview** shows the screen and up to 40 lines of scrollback, capped at 16 KiB. It opens at the latest output. Each terminal row stays on one line, and a row wider than the panel ends with "…".
 - **Open** focuses the run's pane in `herdr-app`. If the run has no pane, **Open** shows it in a peek window without adding a tab. If `herdr-app` is not installed or not running, **Open** runs `hc attach` in Noctalia's terminal.
 - **Open in terminal** always runs `hc attach` in Noctalia's terminal.
 
