@@ -1,0 +1,41 @@
+id = "tuanbinhtran/herdr-core"
+name = "Herdr Core"
+version = "0.1.0"
+plugin_api = 26
+author = "tuanbinhtran"
+license = "MIT"
+icon = "robot"
+description = "Bar widget and attached panel for Herdr Core: watch runs, open them in herdr-app or a terminal, and launch saved templates."
+tags = ["bar", "panel", "service", "terminal", "system"]
+dependencies = ["hc", "python3"]
+
+[[setting]]
+key = "notifications_enabled"
+type = "bool"
+label_key = "settings.notifications_enabled.label"
+description_key = "settings.notifications_enabled.description"
+default = false
+
+[[setting]]
+key = "open_in_terminal_only"
+type = "bool"
+label_key = "settings.open_in_terminal_only.label"
+description_key = "settings.open_in_terminal_only.description"
+default = false
+
+[[service]]
+id = "service"
+entry = "service.luau"
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+
+[[panel]]
+id = "panel"
+entry = "panel.luau"
+width = 520
+height = 520
+placement = "attached"
+position = "auto"
+open_near_click = true

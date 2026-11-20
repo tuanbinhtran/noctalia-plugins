@@ -21,3 +21,17 @@ description = "Bar widget and panel for switching Cardwire GPU modes and showing
 plugin_api = 26
 tags = ["bar", "panel", "service", "hardware", "system"]
 dependencies = ["cardwire"]
+
+[[plugin]]
+id = "tuanbinhtran/herdr-core"
+name = "Herdr Core"
+version = "0.1.0"
+updated_at = 1795085824
+added_at = 1795085824
+author = "tuanbinhtran"
+license = "MIT"
+icon = "robot"
+description = "Bar widget and attached panel for Herdr Core: watch runs, open them in herdr-app or a terminal, and launch saved templates."
+plugin_api = 26
+tags = ["bar", "panel", "service", "terminal", "system"]
+dependencies = ["hc", "python3"]
